@@ -6,17 +6,20 @@ import (
 	"sync"
 )
 
-func producer(dataChan chan<- int) {
-	data := make([]int, 10)
-	var wg sync.WaitGroup
-	for i := range data {
-		wg.Add(1)
-		value := rand.Intn(100)
-		data[i] = value
-		go mapper(value, dataChan, &wg)
-	}
-	wg.Wait()
-	close(dataChan)
+func producer() <-chan int {
+	dataChan := make(chan int)
+	go func() {
+		defer close(dataChan)
+
+		var wg sync.WaitGroup
+		for i := 0; i < 10; i++ {
+			val := rand.Intn(100)
+			wg.Add(1)
+			go mapper(val, dataChan, &wg)
+		}
+		wg.Wait()
+	}()
+	return dataChan
 }
 
 func mapper(value int, dataChan chan<- int, wg *sync.WaitGroup) {
@@ -25,9 +28,7 @@ func mapper(value int, dataChan chan<- int, wg *sync.WaitGroup) {
 }
 
 func main() {
-	dataChan := make(chan int)
-	go producer(dataChan)
-	for value := range dataChan {
+	for value := range producer() {
 		fmt.Printf("%d ", value)
 	}
 }
